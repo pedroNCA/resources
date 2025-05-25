@@ -1,0 +1,194 @@
+Konfigurasi OpenVPN
+# yum install epel-release -y
+# yum install openvpn easy-rsa -y
+Buat direktori easy-rsa
+# mkdir /etc/openvpn/easy-rsa
+# cp -rf /usr/share/easy-rsa/3.0.8/* /etc/openvpn/easy-rsa/
+
+Inisialisasi PKI
+# cd /etc/openvpn/easy-rsa
+# ./easyrsa init-pki
+
+Build CA (Certificate Authority)
+# ./easyrsa build-ca
+
+ Generate Diffie-Hellman parameters
+# ./easyrsa gen-dh
+
+Buat sertifikat server
+# ./easyrsa gen-req server nopass
+# ./easyrsa sign-req server server
+
+Buat direktori keys
+# mkdir /etc/openvpn/keys
+# chmod 750 /etc/openvpn/keys/
+
+Salin file sertifikat
+# cp pki/ca.crt /etc/openvpn/keys/
+# cp pki/issued/server.crt /etc/openvpn/keys/
+# cp pki/private/server.key /etc/openvpn/keys/
+# cp pki/dh.pem /etc/openvpn/keys/dh2048.pem
+
+# nano /etc/openvpn/server.conf
+Isi ini :
+
+port 1194
+proto udp
+dev tun
+ca /etc/openvpn/keys/ca.crt
+cert /etc/openvpn/keys/server.crt
+key /etc/openvpn/keys/server.key
+dh /etc/openvpn/keys/dh2048.pem
+server 172.16.16.0 255.255.255.0
+push "route 192.168.1.0 255.255.255.0"
+keepalive 10 120
+comp-lzo
+persist-key
+persist-tun
+verb 3
+
+# echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+# sysctl -p
+
+Konfigurasi firewall
+# systemctl start firewalld
+# systemctl enable firewalld
+# firewall-cmd --add-port=1194/udp --permanent
+# firewall-cmd --add-masquerade --permanent
+# firewall-cmd --reload
+
+# cd /etc/openvpn/easy-rsa
+# ./easyrsa gen-req client-windows nopass
+# ./easyrsa sign-req client client-windows
+
+Salin file client
+# cp pki/issued/client-windows.crt /etc/openvpn/keys/
+# cp pki/private/client-windows.key /etc/openvpn/keys/
+
+# nano /etc/openvpn/keys/client-windows.ovpn
+Isi ini : 
+client
+dev tun
+proto udp
+remote [IP_PUBLIC_SERVER] 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+comp-lzo
+verb 3
+
+<ca>
+-----BEGIN CERTIFICATE-----
+[Isi dengan konten ca.crt]
+-----END CERTIFICATE-----
+</ca>
+
+<cert>
+-----BEGIN CERTIFICATE-----
+[Isi dengan konten client-windows.crt]
+-----END CERTIFICATE-----
+</cert>
+
+<key>
+-----BEGIN PRIVATE KEY-----
+[Isi dengan konten client-windows.key]
+-----END PRIVATE KEY-----
+</key>
+
+
+( Salin sertifikat nya dan masukan ke dalam file ovpn )
+# cat /etc/openvpn/keys/ca.crt
+# cat /etc/openvpn/keys/client-windows.crt
+# cat /etc/openvpn/keys/client-windows.key
+
+( pindahkan file ovpn nya supaya mudah di import )
+# cp /etc/openvpn/keys/client-windows.ovpn /home/namauser/Documents
+
+# systemctl enable --now openvpn@server
+# systemctl status openvpn@server
+# systemctl stop firewalld
+# sistemctl disable firewalld
+
+( lalu uji koneksi di aplikasi openvpn pada windows )
+
+Modevasive
+# yum install httpd
+# yum install epel-release
+# yum install perl
+# nano /var/ww/html/index.html
+Isi ini :
+<h1> LKS TINUS </h1>
+
+# nano ddos.pl
+
+Ini isinya:
+ 
+
+
+Ini script nya :
+
+#!/usr/bin/perl
+
+# test.pl: a small perl script that test's mod_dosevasive's effectiveness
+
+use IO::Socket;
+use strict;
+
+for(0..100) {
+  my($response);
+  my($SOCKET) = new IO::Socket::INET( Proto   => "tcp",
+                                      PeerAddr=> "127.0.0.1:80");
+  if (! defined $SOCKET) { die $!; }
+  print $SOCKET "GET /?$_ HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n";
+  $response = <$SOCKET>;
+  print $response;
+  close($SOCKET);
+}
+# systemctl restart httpd
+# perl ddos.pl		( jalankan program nya )
+Ini output nya :
+ 
+# yum install mod_evasive mod_security
+# systemctl restart httpd
+# perl ddos.pl		( jalankan ulang untuk uji coba )
+# nano /etc/httpd/conf.d/mod_evasive.conf
+( custom  DOSPageCount nya menjadi 4 )qq
+( pada paling bawah aktifkan whitelistnya dengan hapus pagarnya )
+# systemctl restart httpd 
+
+Analisis dan Patching Security Header Web
+# yum install httpd php -y
+( lalu di start dan di enable kan )
+# nano /var/www/html/info.php
+( Isi di bawah ini : )
+<?php
+phpinfo();
+?>
+# chmod 777 /var/www/html/info.php
+Uji coba di browser dengan “ http://ipaddress/info.php
+# yum install python3
+# pip3 install shcheck
+# cd /usr/local/lib/python3.6/site-packages/shcheck
+# python3 shcheck.py http://ipaddress -i -x -g
+# nano /etc/httpd/conf/httpd.conf
+
+Ini isi nya :
+
+ 
+
+ Ini script nya:
+  <IfModule mod_headers.c>
+    <Directory />
+        Header always set X-XSS-Protection "1; mode=block"
+        Header always set x-Frame-Options "SAMEORIGIN"
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        Header always set Content-Security-Policy "default-src 'self'; font-src *;img-src * data:; script-src *; style-src *;"
+        Header always set Referrer-Policy "strict-origin"
+        Header set Permissions-Policy "geolocation=self"
+    </Directory>
+  </IfModule>
+
+# systemctl restart httpd
+# python3 shcheck.py http://ipaddress -i -x -g
