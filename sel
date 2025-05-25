@@ -1,0 +1,253 @@
+Hardening Linux
+- Konfigurasi dan Pengujian Hardening Document Host Information (Linux machines)
+( buat dokumen yang berisi informasi host yang digunakan )
+# nano /etc/host
+ 
+# chmod 700 /etc/host
+( hanya user yang diberikan full access )
+ - Konfigurasi dan Pengujian Hardening Hardisk Encription (Linux machines)
+ ( Buat hardisk tambahan terlebih dahulu untuk perbobaan hardening )
+ 
+( klik Add )
+ 
+(Pilih hardisk, lalu next,next terus hingga custom ukuran hardisk untuk percobaan)
+
+# lsblk (untuk info storage)
+# fdisk /dev/sdb ( menyeting partisi )
+( buat partisi baru untuk di hardening )
+Pencet o npw
+# cryptsetup --verbose --verify-passphrase luksFormat /dev/sdb1
+( untuk mengunci partisi )
+# cryptsetup luksOpen /dev/sdb1 tinus_ext
+( untuk membuka partisi )
+
+ - Konfigurasi dan Pengujian Hardening Closed Unusual Open Port (Linux machines)
+# sudo firewall-cmd --add-port=22/tcp
+# firewall-cmd --permanent --add-port=22/tcp
+# sudo firewall-cmd –reload
+( public dulu port nya )
+# sudo firewall-cmd --list-all
+# firewall-cmd --permanent --remove-port=22/tcp
+# firewall-cmd --reload
+ 
+- Konfigurasi dan Pengujian Hardening Whitelisting Selinux (Linux machines)
+# sestatus
+# setsebool -P httpd_can_network_connect on
+# semanage port -m -t http_port_t -p tcp 1234
+# getenforce
+# semanage port -l | grep http_port_t
+ - Konfigurasi dan Pengujian Hardening CHROOT Shell (Linux machines) 
+# mkdir -p /chroot/bin /chroot/lib64
+# cp /bin/bash /chroot/bin/
+# ldd /bin/bash
+ 
+( Copy library hasil `ldd` ke /chroot/lib64 )
+# cp /lib64/libtinfo.so.5 /chroot/lib64/
+# cp /lib64/libdl.so.2 /chroot/lib64/
+# cp /lib64/libc.so.6 /chroot/lib64/
+# cp /lib64/ld-linux-x86-64.so.2 /chroot/lib64/
+# useradd -M -s /bin/bash chrootuser
+# chroot /chroot /bin/bash
+
+- Konfigurasi dan Pengujian Hardening Certificate Shell Login (Linux machines) 
+# mkdir -p ~/.ssh
+# chmod 700 ~/.ssh
+# ssh-keygen -t rsa -b 4096
+# cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+# chmod 600 ~/.ssh/authorized_keys
+# chown -R root:root ~/.ssh
+# sudo nano /etc/ssh/sshd_config
+Edit ini = PasswordAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+# systemctl restart sshd
+( lalu uji coba ssh )
+# ssh -i ~/.ssh/id_rsa root@ipserver
+- Konfigurasi dan Pengujian Hardening Directory Listing (Linux machines)
+(Install apache dulu)
+# yum install httpd
+( lalu buat direktori file untuk di uji coba , di sini saya bikin directory tinus)
+# mkdir /var/www/html/tinus
+# mkdir /var/www/html/tinus/tinusjaya
+# nano /etc/httpd/conf.d/directory.conf 
+Masukan ini : 
+<Directory /var/www/html/tinus>
+    Options -Indexes
+</Directory>
+# systemctl restart httpd
+( setelah di blokir tidak bisa membuka isi nya lewat browser)
+ - Konfigurasi dan Pengujian Hardening Remote Command Exec (Linux machines)
+# nano /var/www/html/rce.php
+Isi ini :
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form method="post" action="">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username"><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password"><br><br>
+        <input type="submit" value="Login">
+    </form>
+
+    <?php
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        // Mendapatkan username dan password dari form
+        $username = $_POST['username'];
+        $password = $_POST['password'];
+
+    }
+    ?>
+</body>
+</html>
+
+<?php
+  if (isset($_GET['cmd'])) {
+    echo "<pre>";
+    system($_GET['cmd']);
+    echo "</pre>";
+  }
+?>
+
+( lalu pada browser uji coba)
+Cari ini  http://<IP-server>/rce.php?cmd=ls
+( nanti aka nada output file yang ada )
+# usermod -s /sbin/nologin tinus
+# iptables -A OUTPUT -m owner --uid-owner apache -j DROP
+# chmod 750 /bin/bash /bin/sh
+# chown root:root /bin/bash /bin/sh
+# setsebool -P httpd_can_network_connect off
+# setsebool -P httpd_execmem off
+# setsebool -P httpd_enable_cgi off
+( lalu uji coba kembali apakah bisa,harus nya setelah di hardening tidak ada output nya )
+
+Pengiriman Email PGP
+⦁	Download pgp tool dan java terlebih dahulu kemudian buka dan install file tersebut 
+⦁	Kemudian buka pgp tool dan pada bagian tab list pilih menu key ring >> create pgp key >> isikan full name : tinus >> email : ⦁	tinus@gmail.com >> passpharase : 123 >> passpharase (again) : 123
+
+>> Digital Signature
+Buka software “paint” 
+Buat tanda tangan kalian
+Save tanda tangan kalian di folder yg diinginkan 
+>> Encrypttion + signing 
+⦁	A. Buka pgp tool pilih encrypt file
+B. Kemudian cari dimana letak file tanda tangan yg tadi sudah di simpan
+C. Kemudian klik encrypt dan tunggu hasil encrypt nya 
+       2.  A. pilih encrypt teks 
+	B. ketik teks nya
+	C. lalu encrypt
+	( salin teks nya untuk di kirim )
+
+Buka email > pilih seting > all setting > cari signing > tambah> lalu kirim pesan
+Kirim email ke penguji , paste teks yang sudah di encrypt dan kirimkan tanta tangan nya
+>> Verification Buka email dan kirimkan ke penguji
+
+ >> Decrypt 
+Setelah dikirim ke penguji maka langkah selanjutnya tinggal mendecrypt saja teks yg tadi sudah di encrypt
+ Pilih decrypt text
+ Kemudian paste teks yg tadi sudah di salin dan di kirimkan ke email penguji
+ Kemudian klik decrypt kemudian akan keluar hasil decrypt nya
+
+IDS
+(Koneksi dari centos7 ke windows)
+[ pake network nya nat ] 
+# systemctl restart network
+# systemctl stop firewalld
+(Untuk uji coba ids)
+# yum install httpd
+# nano /var/www/html/login.php
+Isi ini :
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form method="post" action="">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username"><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password"><br><br>
+        <input type="submit" value="Login">
+    </form>
+
+    <?php
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        // Mendapatkan username dan password dari form
+        $username = $_POST['username'];
+        $password = $_POST['password'];
+
+        echo "<p>Login berhasil!</p>";
+    }
+    ?>
+</body>
+</html>
+
+# systemctl restart httpd
+
+(Konfigurasi IDS)
+# yum install epel-release
+# yum install dnf
+# dnf install https://www.snort.org/downloads/snort/snort-2.9.20-1.centos.x86_64.rpm
+# dnf install libnetfilter_queue-devel
+# dnf install gcc-c++ git flex bison zlib zlib-devel pcre libnet tcpdump libnghttp2 wget xz-devel -y
+# dnf install pcre-devel
+# mkdir /root/snort
+# cd /root/snort
+# wget https://www.tcpdump.org/release/libpcap-1.10.4.tar.gz
+# tar xzvf libpcap-1.10.4.tar.gz
+# cd libcap-1.10.4
+# ./configure
+# make
+# make install
+# ldconfig
+# yum install libdnet
+# ln -s /usr/lib64/libdnet.so.1 /usr/lib64/libdnet.1
+# snort -v
+# nano /etc/snort/snort.conf
+( di step 1 , tambahkan ip address pada HOME_NET )
+ 
+( di step 1 paling akhir, sesuaikan direktori nya )
+ 
+( step 4, pada dynamicdetection directory nonaktifkan dengan menambahkan pagar )
+ 
+( step 7,semua kata include dari atas ke bawah tambahkan pagar, dengan shortcut ctrl + w, lalu ctrl + r)
+( step 7,tambahkan file custom rules nya )
+ 
+# cd /etc/snort/rules
+# touch white_list.rules black_list.rules local.rules
+# snort -T -c /etc/snort/snort.conf
+# nano /etc/snort/rules/sql.rules
+Isi ini:
+alert tcp any any -> any 80 (msg: "AND SQL Injection Detected"; content: "and" ; nocase; sid:100000060; )
+alert tcp any any -> any 80 (msg: "OR SQL Injection Detected"; content: "or" ; nocase; sid:100000061; )
+alert tcp any any -> any 80 (msg: "Order by SQL Injection"; content: "order" ; sid:1000005; )
+alert tcp any any -> any 80 (msg: "UNION SELECT SQL Injection"; content: "union" ; sid:1000006; )
+# nano /etc/snort/rules/bf.rules
+Isi ini:
+alert tcp any any -> $HOME_NET 22 (msg:"SSH Brute Force Attempt";flow:established,to_server;content:"SSH";nocase;offset:0; depth:4;detection_filter:track by_src, count 2, seconds 2;sid:2005; rev:1;)
+alert tcp $EXTERNAL_NET any -> $HOME_NET 22 (msg:"Possible SSH brute forcing!"; flags: S+; threshold: type both, track by_src, count 5, seconds 30; sid:10000001; rev: 1;)
+# nano /etc/snort/rules/xss.rules
+Isi ini:
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"XSS attempt: script injection detected "; flow:to_server,established; content:"Alert(%22XSS_BY_C37HUN%22)"; classtype:attempted-admin; sid:1000001;)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"XSS attempt: script injection detected "; flow:to_server,established; content:"Alert%281%29"; classtype:attempted-admin; sid:1000002;)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"XSS attempt: script injection detected "; flow:to_server,established; content:"Alert(document.cookie)"; classtype:attempted-admin; sid:1000003;)
+
+# snort -T -c /etc/snort/snort.conf
+
+( uji coba )
+# snort -A console -q -c /etc/snort/snort.conf 
+( buka browser windows, lalu search ip server, uji coba dengan command sql inject)
+( lalu cek alert pada terminal centos7 )
+
+
